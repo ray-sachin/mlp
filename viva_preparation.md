@@ -1,553 +1,625 @@
-# MLP Level 2 Viva — Complete Preparation Guide
-## Proctor: Lvl2_74
+# 🎯 ULTIMATE MLP Level 2 Viva Preparation — Proctor Lvl2_74
 
 ---
 
-# PART 1: PROJECT OVERVIEW
+# SECTION A: PSYCHOLOGICAL PROFILE OF PROCTOR Lvl2_74
 
-## Q: What is the objective of this project?
-**A:** This is a **multi-class text classification** problem. Given online comments with metadata (upvotes, downvotes, emoticons, demographic info), we predict which **category (0, 1, 2, or 3)** a comment belongs to. The competition metric is **F1-macro**, which treats all classes equally important — critical because our dataset is **heavily imbalanced** (class 0 has 114K samples, class 3 has only 5K).
+## Pattern Analysis (12+ student reports, Feb 2024 – Apr 2026)
 
-## Q: How did you proceed in this project?
-**A:** End-to-end ML pipeline:
-1. **Load data** → understand shape, types, missing values
-2. **EDA** → visualize distributions, class imbalance, feature correlations
-3. **Data cleaning** → handle missing values, convert types, drop/create columns
-4. **Feature engineering** → extract text features (word count, caps ratio, etc.), time features, interaction features
-5. **Preprocessing** → TF-IDF vectorization + SVD (text), StandardScaler (numeric), OneHotEncoder (categorical)
-6. **Train/val split** → 80/20 stratified split
-7. **Model training** → 8 models: LogReg, SGD, NB, KNN, SVM, LightGBM, XGBoost, MLP
-8. **Hyperparameter tuning** → GridSearchCV on 3 models
-9. **Model comparison** → bar charts, confusion matrices
-10. **Final pipeline** → 3-fold CV with LightGBM + F1-macro threshold tuning
-11. **Submission** → generate predictions on test set
+### 🧠 Proctor Behavior Model
 
----
+1. **Phase 1 (First ~10 min): Theory bombardment BEFORE notebook**
+   - He asks 5-8 theory questions BEFORE you even share screen
+   - Questions are ALWAYS the same set (confirmed by 8+ students: "Exactly the same questions")
+   - He tests if you know basics FIRST — if you fail here, the rest is harder
 
-# PART 2: LINE-BY-LINE NOTEBOOK WALKTHROUGH
+2. **Phase 2 (~10-15 min): "Share notebook and explain"**
+   - He tells you to share and give an overview
+   - He does NOT want line-by-line — he wants HIGH-LEVEL overview
+   - One student said: "Wasn't even paying attention to my nb explanation"
+   - He skims through notebook, stops at EDA plots and asks WHY
 
-## Cell 1 — Imports
-```python
-import pandas as pd, numpy as np, re, time, warnings
-warnings.filterwarnings('ignore')
-```
-- **Why filterwarnings('ignore')?** Suppresses convergence warnings from sklearn that clutter output. In production you'd want to see them, but for a competition notebook it keeps things clean.
+3. **Phase 3 (~5 min): Specific notebook questions**
+   - Which models did you use? Why did the best one work?
+   - Did you handle null values? How?
+   - How many HPT runs? Any score increase?
+   - Rarely asks coding (only 1 out of 12 students got coding from him)
 
-```python
-from sklearn.model_selection import train_test_split, StratifiedKFold
-```
-- **StratifiedKFold** — preserves class distribution in each fold. Critical for imbalanced data (our class 3 is only 2.7% of data).
-- **train_test_split** — splits data into train/validation sets.
+### 🎯 His Fixed Question Bank (90% probability these exact questions appear)
 
-```python
-from sklearn.feature_extraction.text import TfidfVectorizer
-```
-- **TF-IDF** converts text to numeric features. More on this below.
+| # | Question | Times Asked | Priority |
+|---|----------|------------|----------|
+| 1 | What is data preprocessing? Steps? | 10/12 | 🔴 CRITICAL |
+| 2 | What is feature scaling? Why needed? | 8/12 | 🔴 CRITICAL |
+| 3 | What is hyperparameter tuning? Why required? | 10/12 | 🔴 CRITICAL |
+| 4 | GridSearchCV vs RandomizedSearchCV? | 8/12 | 🔴 CRITICAL |
+| 5 | What is random_state=42? Why 42? | 9/12 | 🔴 CRITICAL |
+| 6 | House price prediction — which model + algorithm? | 7/12 | 🔴 CRITICAL |
+| 7 | What is dimensionality reduction? Does it crop? | 7/12 | 🔴 CRITICAL |
+| 8 | Which models did you try? Best one? Why? | 6/12 | 🟡 HIGH |
+| 9 | What is learning rate? | 5/12 | 🟡 HIGH |
+| 10 | Why is accuracy bad for this dataset? | 4/12 | 🟡 HIGH |
+| 11 | Why EDA? Why did you plot X graph? | 5/12 | 🟡 HIGH |
+| 12 | Feature engineering — what and why? | 4/12 | 🟡 HIGH |
+| 13 | How did you handle missing/null values? | 5/12 | 🟡 HIGH |
+| 14 | Explain TF-IDF vs Count Vectorizer | 3/12 | 🟢 MEDIUM |
+| 15 | Explain working of Logistic Regression | 3/12 | 🟢 MEDIUM |
+| 16 | Outlier detection and treatment | 3/12 | 🟢 MEDIUM |
+| 17 | Difference between Random Forest and Decision Tree | 2/12 | 🟢 MEDIUM |
+| 18 | Explain LightGBM / XGBoost working | 3/12 | 🟢 MEDIUM |
+| 19 | Confusion matrix — what and why? | 3/12 | 🟢 MEDIUM |
+| 20 | XGBoost vs LightGBM difference? | 2/12 | 🟢 MEDIUM |
 
-```python
-from sklearn.decomposition import TruncatedSVD
-```
-- **TruncatedSVD** — dimensionality reduction for sparse matrices (TF-IDF output). Regular PCA requires dense matrices = memory explosion.
+### 🧩 His Personality Traits
+- **Predictable**: Uses the SAME question set every time
+- **Nice but detail-oriented on EDA**: Will spend extra time if you have good graphs
+- **Hates memorized answers**: One student said he's "fed up with the Hitchhiker's Guide answer" for 42 — so give a GENUINE answer (see below)
+- **Values confidence**: Student who got 47/50 said "All depends on how well u speak... I just answered everything confidently"
+- **No coding usually**: Only 1/12 students were asked to code. BUT be prepared anyway
+- **~27 min duration**: Average viva lasts 25-30 min
+- **Rarely interrupts**: Lets you explain, then asks follow-ups
 
-```python
-from sklearn.calibration import CalibratedClassifierCV
-```
-- **CalibratedClassifierCV** — wraps LinearSVC to provide `predict_proba()` (SVM doesn't natively output probabilities).
+### ⚡ Winning Strategy for Lvl2_74
 
----
-
-## Cell 3 — Data Loading & EDA
-
-```python
-DATA_DIR = "/kaggle/input/comment-category-prediction-challenge"
-train_raw = pd.read_csv(os.path.join(DATA_DIR, "train.csv"))
-```
-- **Why os.path.join?** Platform-independent path construction. Works on Windows and Linux.
-
-```python
-label_counts = train_raw['label'].value_counts().sort_index()
-```
-- **Why sort_index()?** Shows labels in order 0,1,2,3 instead of by frequency.
-- **What does this show?** Heavy imbalance: class 0 = 114K (57.7%), class 3 = 5.5K (2.8%). This is why we use `class_weight='balanced'` and F1-macro instead of accuracy.
-
-### Q: Why is accuracy a bad metric for this dataset?
-**A:** Because of **class imbalance**. A dummy model predicting class 0 for everything gets ~57.7% accuracy. That's "good" accuracy but useless. F1-macro averages F1 across all classes equally, so it punishes ignoring minority classes.
+1. **Memorize the 7 CRITICAL questions and nail them** (80% of your marks)
+2. When he says "share notebook", give a **confident 15-min high-level overview** — don't read code
+3. **Pre-answer questions in your explanation** — say "I used StandardScaler because..." before he asks
+4. On EDA: explain **each graph's PURPOSE and INSIGHT** — he cares about reasoning
+5. On random_state=42: **don't say "Hitchhiker's Guide"** — say genuinely "42 is just a convention, any integer works for reproducibility, I use it because it's the community standard"
 
 ---
 
-## Cell 5 — Visualizations
+# SECTION B: THE 7 CRITICAL ANSWERS (Memorize these word-for-word)
 
-### Q: Why did you plot each graph? What does it show?
-These will be asked about in detail. Prepare for each plot:
+## 1. "What is data preprocessing? What are the steps?"
 
-1. **Label distribution bar chart** → Shows class imbalance. Classes 0 and 2 dominate. This tells us we need balanced class weights or oversampling.
+**Answer:**
+"Data preprocessing is the process of converting raw data into a clean, suitable format for machine learning models. The main steps I followed are:
 
-2. **Comment length distribution by label** → Some classes have longer/shorter comments. Class 3 has shorter comments (mean=194 chars) vs class 1 (mean=336 chars). This means comment length is a useful feature.
+1. **Handling missing values** — I filled NaN comments with empty string, and NaN demographics (race, religion, gender) with 'unknown' since 73% were missing
+2. **Data type conversion** — converted post_id to string (it's categorical, not numeric), and disability to integer
+3. **Feature engineering** — created text features like word_count, caps_ratio, has_url, and interaction features like upvote_ratio
+4. **Text vectorization** — used TF-IDF to convert text to numbers
+5. **Encoding** — OneHotEncoder for categorical features
+6. **Scaling** — StandardScaler for numeric features
+7. **Dimensionality reduction** — TruncatedSVD to reduce TF-IDF features from 30K to 150"
 
-3. **Crosstab: Race vs Label** → Shows how demographic features relate to labels. E.g., comments mentioning 'black' race are disproportionately label=1. This tells us demographic features carry predictive signal.
+## 2. "What is feature scaling? Why is it required?"
 
-4. **Correlation heatmap** → Shows relationships between numeric features. High correlation between features means redundancy — can guide feature selection.
+**Answer:**
+"Feature scaling is transforming features to a similar range so no single feature dominates the model.
 
-5. **Boxplots** → Show distribution spread and outliers for each feature by class.
+**Why required:** Models like Logistic Regression and SVM use gradient-based optimization. If 'upvote' ranges from 0 to 1000 but 'caps_ratio' ranges from 0 to 1, the gradient will be dominated by upvote. Scaling fixes this.
+
+**Methods I know:**
+- **StandardScaler**: Z-score normalization → (x - mean)/std → output has mean=0, std=1
+- **MinMaxScaler**: Scales to [0,1] → (x - min)/(max - min)
+- **RobustScaler**: Uses median and IQR → robust to outliers
+- I used StandardScaler because my numeric features are roughly normally distributed.
+
+**Note:** Tree-based models like LightGBM don't need scaling — they split on thresholds, not distances."
+
+## 3. "Why is hyperparameter tuning required?"
+
+**Answer:**
+"Default hyperparameters are generic — they don't know my specific dataset. Tuning finds the optimal settings for MY data.
+
+For example, in LogisticRegression, C controls regularization. With C=0.01 I got F1=0.65, but with C=5.0 I got F1=0.71. That's a 6% improvement from just tuning one parameter.
+
+I used GridSearchCV with 3-fold cross-validation on 3 models: LogisticRegression (tuned C, solver), SGDClassifier (tuned alpha, loss), and LinearSVC (tuned C, loss, max_iter). The scoring metric was f1_macro to match the competition."
+
+## 4. "GridSearchCV vs RandomizedSearchCV?"
+
+**Answer:**
+"Both search for the best hyperparameters, but differently:
+
+- **GridSearchCV** tries **every** combination exhaustively. If I have 5 C values × 2 solvers × 3 folds = 30 model fits. Guaranteed to find the best in the grid, but slow.
+- **RandomizedSearchCV** randomly samples N combinations from parameter **distributions**. If I have 1000 possible combos, sampling 50 random ones often finds ~95% of the best. Much faster.
+
+**When to use which:** Grid for small search spaces (<50 combos), Random for large spaces or when you have continuous parameters.
+
+I used GridSearchCV because my search spaces were small (10-24 combos per model)."
+
+## 5. "What is random_state=42? Why 42?"
+
+**Answer:**
+"random_state is a seed for the random number generator. Setting it ensures **reproducibility** — same seed gives the same train/test split, same tree structure, same results every run. Without it, every run is different and you can't fairly compare experiments.
+
+As for why 42 specifically — it's just a convention in the data science community. Any integer gives equally valid results. It became popular and is now the standard default across tutorials and documentation. I use it for consistency with community practice."
+
+## 6. "If a house was priced at X rupees 10 years ago, predict its price now. Which model?"
+
+**Answer:**
+"This is a **regression** problem since we're predicting a continuous value (price).
+
+I'd use **Gradient Boosted Trees (XGBoost or LightGBM)** because:
+- Non-linear relationship between features and price
+- Handles mixed feature types (area, bedrooms, location, year)
+- Robust to outliers
+- Consistently top-performing on tabular data
+
+**Algorithm steps for Linear Regression** (simpler baseline):
+1. **Collect features**: area, number of rooms, location, age, previous prices
+2. **Model**: price = w₁×area + w₂×rooms + w₃×age + ... + b
+3. **Loss function**: MSE = (1/n) × Σ(predicted - actual)²
+4. **Optimization**: Gradient descent — update weights: w = w - learning_rate × ∂MSE/∂w
+5. **Evaluation**: R² score, RMSE, MAE
+6. Repeat until loss converges"
+
+## 7. "What is dimensionality reduction? Does it crop/cut data?"
+
+**Answer:**
+"**No, it does NOT crop or cut data.** It **transforms** data by projecting it onto a lower-dimensional space.
+
+Think of it like a shadow — a 3D object's shadow on a wall is 2D. It captures the main shape but loses some detail.
+
+I used **TruncatedSVD** (similar to PCA but works on sparse matrices). It decomposes the TF-IDF matrix: X ≈ U × Σ × Vᵀ, keeps only the top k singular values (k=150).
+
+My 30,000 TF-IDF features became 150 components = 99.5% reduction in dimensionality.
+
+**What reduces?** The number of features/dimensions. All data points are preserved — none are removed. The 150 new features are linear combinations of the original 30,000 that capture maximum variance."
 
 ---
 
-## Cell 7 — Data Cleaning
+# SECTION C: PREDICTED NEW QUESTIONS FOR YOUR NOTEBOOK
 
-```python
-train['comment'] = train['comment'].fillna('')
-```
-- **Why fillna('')?** 1 comment is NaN. TF-IDF can't handle NaN strings, so we replace with empty string.
+These are questions that Lvl2_74 hasn't asked before but COULD ask based on your specific notebook:
 
-```python
-for col in ['race', 'religion', 'gender']:
-    train[col] = train[col].fillna('unknown')
-```
-- **Why 'unknown' and not drop?** 145K/198K rows have NaN demographics (~73%). Dropping would lose most data. 'unknown' preserves the information that "no demographic was provided" — which itself is informative (missing=class 0 tends to dominate).
+## EDA-Specific Questions (he spends 30 min here)
 
-```python
-train['disability'] = train['disability'].astype(int)
-```
-- **Why?** Converts boolean True/False to 1/0 for numerical models.
+### Q: "Why did you plot the label distribution? What does it show?"
+**A:** "I plotted it to check for class imbalance. Class 0 has 114K samples (57.7%) while class 3 has only 5.5K (2.8%) — a 20:1 ratio. This told me I need balanced class weights and F1-macro instead of accuracy."
 
-```python
-train['post_id'] = train['post_id'].astype(str)
-```
-- **Why str?** post_id is categorical (52 unique values like 72, 39, etc.), not truly numeric. Converting to string lets OneHotEncoder treat it correctly.
+### Q: "What do you infer from the comment length distribution?"
+**A:** "Different classes have different comment lengths. Class 1 (toxic) tends to have longer comments (mean ~336 chars) while class 3 (severe) has shorter ones (~194 chars). This confirms that comment length is a useful predictive feature."
 
----
+### Q: "What does your correlation heatmap tell you?"
+**A:** "It shows the linear relationships between numeric features. High correlation between features means redundancy. For example, upvote and log_upvote are highly correlated (expected, since one is derived from the other), but I keep both because tree models handle it well. It also helped identify which features have some correlation with the target."
 
-## Cell 8 — Feature Engineering
+### Q: "Why did you plot a crosstab of race vs label?"
+**A:** "To understand how demographic features relate to the comment category. I found that comments annotated with certain races are disproportionately in class 1 (toxic). This insight validates that demographic features carry predictive signal."
 
-### Q: What is feature engineering? Why do it?
-**A:** Creating new informative features from raw data to help models learn patterns. Raw data alone (just the comment text + a few columns) may not capture nuances like comment style, aggression signals, etc.
+## Model-Specific Questions
 
-```python
-df["char_len"] = df["comment"].str.len()
-df["word_count"] = df["comment"].str.split().str.len().fillna(0).astype(int)
-```
-- **Why?** Length features are cheap to compute and surprisingly predictive. Toxic/hateful comments (class 1) tend to be longer.
+### Q: "Why does LightGBM work best for this problem?"
+**A:** "Three reasons: (1) It handles class imbalance natively via class_weight='balanced', (2) It captures non-linear interactions between text features and metadata, and (3) Its histogram-based splitting is efficient with our 470-dimensional SVD features. Combined with 3-fold CV and threshold tuning, it achieves our best F1-macro."
 
-```python
-df["caps_ratio"] = df["comment"].str.count(r'[A-Z]') / (df["char_len"] + 1)
-```
-- **Why +1?** Avoids division by zero for empty comments.
-- **Why caps_ratio?** ALL CAPS text often indicates SHOUTING — correlated with toxic content.
+### Q: "Why did Naive Bayes perform so poorly?"
+**A:** "Gaussian NB assumes features are normally distributed and independent. Our SVD features violate both assumptions — they're orthogonal but not Gaussian, and text features have complex dependencies. NB works better with raw count features."
 
-```python
-df["has_url"] = df["comment"].str.contains(r'http[s]?://', regex=True).astype(int)
-```
-- **Why?** Comments with URLs may be spam or less toxic. It's a binary signal.
+### Q: "What is the role of class_weight='balanced'?"
+**A:** "It automatically adjusts the weight of each class inversely proportional to its frequency. So class 3 (2.8% of data) gets ~20x more weight than class 0 (57.7%). This prevents the model from just predicting the majority class."
 
-```python
-df["vote_total"] = df["upvote"] + df["downvote"]
-df["upvote_ratio"] = df["upvote"] / (df["vote_total"] + 1)
-df["log_upvote"] = np.log1p(df["upvote"])
-```
-- **Why log transform?** Upvote/downvote distributions are heavily right-skewed. `log1p` (= log(x+1)) compresses the range, helping linear models. The +1 handles zeros.
-- **Why upvote_ratio?** A comment with 10 upvotes and 0 downvotes is very different from 10 upvotes and 100 downvotes. The ratio captures this.
+### Q: "Why did you use 3-fold CV instead of 5 or 10?"
+**A:** "Trade-off between bias, variance, and computation time. On Kaggle with CPU-only and a 4-hour time limit, 3 folds is the optimal balance. Each fold trains on 66% of data (still statistically robust) while keeping total training time manageable."
 
-```python
-df["if_interact"] = df["if_1"] * df["if_2"]
-```
-- **Why interaction feature?** Captures the **joint effect** of if_1 and if_2. If if_1=0 (meaning no demographic info), then if_interact=0 regardless of if_2. This creates a signal for "both identity features present."
+### Q: "What is early_stopping in LightGBM?"
+**A:** "It monitors validation loss and stops training when it hasn't improved for N rounds (I used N=40). This prevents overfitting — the model uses only the first `best_iteration_` trees, not all 1500. It's like automatic regularization."
+
+### Q: "Why do you combine word n-grams and character n-grams in TF-IDF?"
+**A:** "Word n-grams (1,2) capture standard bigrams like 'hate speech'. Character n-grams (3,5) capture subword patterns like misspellings, l33tspeak, and partial words — important for toxic text where people deliberately misspell slurs."
+
+### Q: "What is sublinear_tf=True?"
+**A:** "Instead of raw term frequency, it uses TF = 1 + log(TF). This dampens the effect of very frequent terms. A word appearing 100 times isn't 100x more important than one appearing once — log scaling reflects this."
+
+### Q: "What is norm='l2' in TfidfVectorizer?"
+**A:** "It normalizes each document's TF-IDF vector to unit length (L2 norm = 1). This ensures documents of different lengths are comparable — a 10-word comment and a 1000-word comment get the same vector magnitude."
 
 ---
 
-## Cell 10 — Preprocessor Pipeline
+# SECTION D: COMPLETE THEORY Q&A (Every concept in your notebook)
 
-### Q: What is data preprocessing?
-**A:** Transforming raw data into a format suitable for ML models. Includes handling missing values, encoding categories, scaling numbers, and vectorizing text.
+## Overfitting vs Underfitting
 
-```python
-TfidfVectorizer(max_features=30000, ngram_range=(1, 2), min_df=2, max_df=0.92,
-                sublinear_tf=True, strip_accents='unicode', norm='l2')
-```
+### Q: "What is overfitting? How to prevent it?"
+**A:** "Overfitting = model memorizes training data, fails on new data. Signs: high train accuracy, low val accuracy. Prevention:
+1. **Regularization** (L1/L2 penalty)
+2. **Early stopping** (stop training when val loss plateaus)
+3. **Cross-validation** (evaluate on multiple folds)
+4. **Reduce model complexity** (fewer trees, fewer leaves)
+5. **More training data**
+6. **Dropout** (for neural networks)
+7. **Subsample/colsample** (use random subset of data/features per tree)"
 
-### Q: Why TF-IDF and not Count Vectorizer?
+### Q: "What is underfitting?"
+**A:** "Model is too simple to capture patterns. Signs: low train AND low val accuracy. Fix: increase model complexity, more features, remove regularization."
+
+## Bias-Variance Tradeoff
+**A:** "Bias = error from wrong assumptions (underfitting). Variance = error from sensitivity to training data (overfitting). Total error = Bias² + Variance + Irreducible noise. You want the sweet spot where both are moderate."
+
+## Bagging vs Boosting
+
+### Q: "Difference between bagging and boosting?"
 **A:**
-- **CountVectorizer** just counts word frequencies. Common words like "the" dominate.
-- **TF-IDF** = Term Frequency × Inverse Document Frequency. It **downweights common words** and **upweights rare, informative words**.
-- `sublinear_tf=True` applies log scaling: tf = 1 + log(tf). This prevents very frequent words from overwhelming the signal.
-- **Result:** TF-IDF gives better features because it captures **how important** a word is to a specific document vs the whole corpus.
+| | Bagging | Boosting |
+|---|---|---|
+| Strategy | Train models in **parallel** on random subsets | Train models **sequentially**, each corrects errors |
+| Example | Random Forest | XGBoost, LightGBM |
+| Reduces | **Variance** (overfitting) | **Bias** (underfitting) |
+| Data sampling | Bootstrap (random with replacement) | Weighted (focus on hard examples) |
+| Overfitting risk | Low | Higher (need regularization) |
 
-### Q: How does TF-IDF work?
+## Decision Tree vs Random Forest
+**A:** "Decision tree = single tree, prone to overfitting. Random Forest = ensemble of 100+ trees trained on bootstrap samples with random feature subsets. Averaging reduces variance."
+
+## Cross-Validation
+
+### Q: "What is cross-validation?"
+**A:** "K-Fold CV splits data into K parts. Train on K-1, validate on 1, repeat K times. Every sample is validated exactly once. Average score is more reliable than a single train/test split."
+
+### Q: "What is StratifiedKFold?"
+**A:** "Same as KFold but preserves class distribution. Essential for imbalanced data — ensures each fold has proportional samples of every class."
+
+## Logistic Regression — Deep Dive
+
+### Q: "How does Logistic Regression work internally?"
 **A:**
-- **TF(t,d)** = (count of term t in document d) / (total terms in d)
-- **IDF(t)** = log(N / df(t)), where N = total documents, df(t) = documents containing term t
-- **TF-IDF(t,d)** = TF × IDF
-- With `sublinear_tf=True`: TF = 1 + log(count) instead of raw count
-- Words appearing in almost every document get low IDF → low TF-IDF (e.g., "the", "is")
-- Rare but meaningful words get high IDF → high TF-IDF (e.g., slurs, hate terms)
+1. Compute linear sum: z = w₁x₁ + w₂x₂ + ... + b
+2. Apply sigmoid: P(y=1) = 1/(1+e^(-z))
+3. For multi-class: softmax across all classes
+4. Loss: Cross-entropy = -Σ[y·log(p) + (1-y)·log(1-p)]
+5. Optimize with gradient descent (or LBFGS)
 
-### Q: What do max_features, ngram_range, min_df, max_df mean?
-- **max_features=30000** — keep only top 30K features by term frequency (vocabulary limit)
-- **ngram_range=(1,2)** — use unigrams ("hate") AND bigrams ("hate speech")
-- **min_df=2** — ignore terms appearing in fewer than 2 documents (removes typos/noise)
-- **max_df=0.92** — ignore terms appearing in >92% of documents (removes stop-words like "the")
-
-```python
-TruncatedSVD(n_components=150, random_state=42)
-```
-
-### Q: What is Truncated SVD? How does it work?
-**A:** Truncated SVD (Latent Semantic Analysis) reduces dimensionality by finding the **k most important directions** (components) in the feature space.
-- Decomposes the TF-IDF matrix X ≈ U × Σ × V^T
-- Keeps only the top k singular values and their corresponding directions
-- **Does NOT crop/cut data** — it **projects** data onto lower-dimensional subspace that captures maximum variance
-- 30,000 TF-IDF features → 150 SVD components. These 150 components capture the main "topics" in the text.
-- **Why not PCA?** PCA needs to center data (subtract mean), which destroys sparsity. TruncatedSVD works directly on sparse matrices.
-
-```python
-StandardScaler()
-```
-
-### Q: What is feature scaling? Why is it required? Different ways?
-**A:** Scaling transforms features to similar ranges so no single feature dominates.
-- **Why needed?** Models like LogReg, SVM, KNN use distance/gradient calculations. Feature "upvote" (range 0-1000) would dominate "caps_ratio" (range 0-1) without scaling.
-- **Methods:**
-  1. **StandardScaler** — Z-score: (x - mean) / std. Output has mean=0, std=1
-  2. **MinMaxScaler** — (x - min) / (max - min). Output in [0, 1]
-  3. **RobustScaler** — uses median/IQR, robust to outliers
-  4. **MaxAbsScaler** — divides by max absolute value, good for sparse data
-- **Tree-based models (LightGBM, XGBoost) don't need scaling** — they split on thresholds, not distances.
-
-```python
-OneHotEncoder(handle_unknown='ignore', sparse_output=False)
-```
-- **Why OneHotEncoder?** Converts categorical features (post_id, race, religion, gender) into binary columns.
-- **handle_unknown='ignore'** — if test data has a category not seen in training, it creates all-zero row instead of crashing.
-
----
-
-## Cell 11 — Train/Validation Split
-
-```python
-X_train, X_val, y_train, y_val = train_test_split(
-    X, y, test_size=0.2, random_state=42, stratify=y)
-```
-
-### Q: What is random_state=42? Why 42?
+### Q: "What is the difference between parameters and hyperparameters?"
 **A:**
-- **random_state** sets the random seed for reproducibility. Same seed = same split every time.
-- **Why 42?** It's just a convention (from "Hitchhiker's Guide to the Galaxy" — "the answer to life, universe, and everything"). Any integer works. The specific number doesn't affect model quality.
-- **Why use it?** Without it, every run gives different splits → different results → can't compare experiments fairly.
+- **Parameters**: Learned during training. Weights w₁, w₂, etc. in LogReg
+- **Hyperparameters**: Set before training. C, learning_rate, n_estimators. Tuned via GridSearchCV
 
-### Q: What does stratify=y do?
-**A:** Ensures the class distribution in train and val matches the original. Without it, random split might put too few class-3 samples in validation (class 3 is only 2.8%).
+## Loss Functions
+
+### Q: "What is a loss function?"
+**A:** "A loss function measures how wrong the model's predictions are. Training = minimizing the loss.
+- **Log loss / Cross-entropy**: For classification (LogReg, MLP)
+- **Hinge loss**: For SVM — max(0, 1 - y·f(x))
+- **MSE**: For regression
+- LightGBM uses **log loss** for classification internally"
+
+## Neural Networks
+
+### Q: "What is an activation function? Name some."
+**A:** "Non-linear function applied after each layer to introduce non-linearity. Without it, stacking layers = same as one layer.
+- **ReLU**: max(0, x). Input: any real number. Output: [0, ∞). Most common.
+- **Sigmoid**: 1/(1+e^(-x)). Input: any real. Output: (0, 1). For binary classification.
+- **Tanh**: (e^x - e^(-x))/(e^x + e^(-x)). Input: any real. Output: (-1, 1).
+- **Softmax**: Converts logits to probabilities summing to 1. For multi-class output layer."
+
+## Encoding Methods
+
+### Q: "OneHotEncoding vs LabelEncoding?"
+**A:**
+- **OneHotEncoding**: Creates binary columns. [Red, Blue, Green] → [1,0,0], [0,1,0], [0,0,1]. No ordinal relationship assumed.
+- **LabelEncoding**: Assigns integers. Red=0, Blue=1, Green=2. Assumes order (bad for nominal data, okay for ordinal).
+- I used OHE because race/religion/gender are nominal (no inherent order).
+
+### Q: "What is handle_unknown='ignore' in OHE?"
+**A:** "If test data has a category not seen in training, instead of crashing with an error, it creates an all-zeros row. Safe for production."
+
+## Regularization
+
+### Q: "What is L1 and L2 regularization?"
+**A:**
+- **L1 (Lasso)**: Adds |w| to loss. Pushes weights to exactly 0 → feature selection.
+- **L2 (Ridge)**: Adds w² to loss. Shrinks weights toward 0 but doesn't zero them → prevents overfitting.
+- **ElasticNet**: Combination of L1+L2.
+- In LogReg: `penalty='l2'` with C=5.0 (C = 1/λ, so lower C = more regularization)
+
+## Precision, Recall, F1
+
+### Q: "Define precision, recall, F1, support"
+**A:**
+- **Precision** = TP/(TP+FP) → "Of all I predicted positive, how many actually are?"
+- **Recall** = TP/(TP+FN) → "Of all actual positives, how many did I catch?"
+- **F1** = 2×P×R/(P+R) → Harmonic mean. Both must be high for F1 to be high.
+- **Support** = Number of actual instances of that class in the data.
+- **Macro avg** = Simple average of per-class metrics. Treats all classes equally.
+- **Weighted avg** = Average weighted by support. Gives more weight to larger classes.
+
+## Data Leakage
+
+### Q: "What is data leakage?"
+**A:** "When information from the test set leaks into training. Examples:
+- Fitting scaler on full data before splitting → scaler knows test distribution
+- Using target variable for feature engineering on test data
+I avoid it by: fit_transform on train, only transform on test."
 
 ---
 
-## Cell 13 — Logistic Regression & SGD
+# SECTION E: CODING QUESTIONS (Common in L2 Vivas)
 
-### Q: What is Logistic Regression? Why is it called "regression"?
-**A:**
-- Despite the name, it's a **classification** algorithm
-- Called "regression" because it uses a **regression function (sigmoid)** internally: P(y=1|x) = 1 / (1 + e^(-w·x))
-- It predicts **probability** of each class, then picks the highest
-- For multi-class: uses **softmax** (one-vs-rest or multinomial)
-- **5 components:** Data (X,y), Model (linear: w·x + b → sigmoid), Loss (cross-entropy/log loss), Optimization (gradient descent / LBFGS), Evaluation (F1-macro)
+Even though Lvl2_74 rarely asks coding, other proctors do. If proctor changes last minute, here are the top coding tasks:
 
+## 1. Write a preprocessing pipeline with ColumnTransformer
 ```python
-LogisticRegression(C=5.0, solver='lbfgs', penalty='l2', max_iter=500,
-                   class_weight='balanced', n_jobs=-1, random_state=42)
-```
-- **C=5.0** — inverse regularization strength. Higher C = less regularization = more complex model
-- **penalty='l2'** — L2 regularization (ridge): adds λ·||w||² to loss. Prevents overfitting by penalizing large weights
-- **solver='lbfgs'** — optimization algorithm. LBFGS is efficient for small-medium datasets
-- **max_iter=500** — maximum gradient descent iterations. If model doesn't converge in 500 steps, it stops (hence the ConvergenceWarning)
-- **class_weight='balanced'** — automatically adjusts weights inversely proportional to class frequency. Class 3 (rare) gets higher weight so model doesn't ignore it
-- **n_jobs=-1** — use all CPU cores for parallel computation
+from sklearn.pipeline import Pipeline
+from sklearn.compose import ColumnTransformer
+from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
 
-### Q: Why did you use 500 iterations for Logistic Regression?
-**A:** Default is 100, but with 470 features and 4 classes, LBFGS needs more iterations to converge. 500 is a balance between convergence and speed. Even at 500, we see ConvergenceWarnings for high C values — ideally we'd increase to 1000, but time constraints on Kaggle.
+num_cols = ['upvote', 'downvote', 'char_len', 'word_count']
+cat_cols = ['race', 'religion', 'gender']
 
-### Q: What is SGD Classifier?
-**A:** Stochastic Gradient Descent classifier. Instead of computing gradient on ALL data (like LBFGS), it updates weights using ONE sample at a time → much faster for large datasets.
-- `loss='modified_huber'` — smooth version of hinge loss, provides probability estimates
-- `alpha` — regularization strength (opposite of C). Higher alpha = more regularization.
+num_pipeline = Pipeline([
+    ('imputer', SimpleImputer(strategy='mean')),
+    ('scaler', StandardScaler())
+])
 
----
+cat_pipeline = Pipeline([
+    ('imputer', SimpleImputer(strategy='most_frequent')),
+    ('encoder', OneHotEncoder(handle_unknown='ignore'))
+])
 
-## Cell 15 — Naive Bayes, KNN, SVM
+preprocessor = ColumnTransformer([
+    ('num', num_pipeline, num_cols),
+    ('cat', cat_pipeline, cat_cols)
+])
 
-### Q: Why does Naive Bayes perform so poorly (4.68% accuracy)?
-**A:** Gaussian NB assumes features are **normally distributed and independent**. Our TF-IDF + SVD features violate both assumptions. SVD components are orthogonal but not Gaussian, and text features have complex dependencies. NB works better with raw count-based features.
-
-### Q: How does KNN work?
-**A:** For each test point, find the K nearest training points (by Euclidean distance), then majority vote.
-- `n_neighbors=5` — K=5
-- `algorithm='ball_tree'` — efficient for high-dimensional data (faster than brute-force)
-- **Why mediocre (0.54 F1)?** KNN struggles in high dimensions ("curse of dimensionality") and with imbalanced data.
-
-### Q: How does LinearSVC work?
-**A:** Support Vector Machine with linear kernel. Finds the hyperplane that **maximizes the margin** between classes.
-- **Margin** = distance from hyperplane to nearest data points (support vectors)
-- **C=1.0** — tradeoff between margin width and classification errors. Higher C = stricter (narrow margin, fewer errors on training data)
-- **Hinge loss:** max(0, 1 - y·f(x)). Points correctly classified with margin >1 contribute 0 loss.
-
----
-
-## Cell 17 — LightGBM & XGBoost
-
-### Q: How does LightGBM work?
-**A:** Gradient Boosted Decision Trees (GBDT). Builds trees **sequentially**, each tree corrects errors of the previous ones.
-1. Start with a base prediction (e.g., class frequencies)
-2. Compute **gradient/residual** = difference between prediction and actual
-3. Fit a decision tree to predict the residual
-4. Add tree prediction (scaled by learning_rate) to current prediction
-5. Repeat for n_estimators trees
-
-**LightGBM's unique features:**
-- **Leaf-wise** tree growth (instead of level-wise) — grows the leaf with highest loss reduction first → faster, better accuracy
-- **Histogram-based** splitting — bins continuous features into ~256 buckets → much faster than exact splits
-- **GOSS** (Gradient-based One-Side Sampling) — keeps samples with large gradients, randomly samples from small gradients → faster training
-
-```python
-lgb.LGBMClassifier(n_estimators=1500, learning_rate=0.05,
-    num_leaves=31, max_depth=8, min_child_samples=30,
-    subsample=0.8, colsample_bytree=0.8,
-    reg_alpha=0.1, reg_lambda=0.5,
-    class_weight='balanced')
-```
-- **n_estimators=1500** — max number of boosting rounds (trees)
-- **learning_rate=0.05** — shrinks each tree's contribution. Lower = more trees needed but better generalization
-- **num_leaves=31** — max leaves per tree. Controls complexity. 31 is typical for medium data
-- **max_depth=8** — limits tree depth (additional constraint beyond num_leaves)
-- **min_child_samples=30** — minimum samples in a leaf. Prevents overfitting on noise
-- **subsample=0.8** — use 80% of data per tree (row sampling). Adds randomness, reduces overfitting
-- **colsample_bytree=0.8** — use 80% of features per tree. Same benefit
-- **reg_alpha=0.1** — L1 regularization on leaf weights
-- **reg_lambda=0.5** — L2 regularization on leaf weights
-- **early_stopping(50)** — stop if validation loss doesn't improve for 50 rounds
-
-### Q: What is learning rate?
-**A:** Controls how much each tree contributes to the final prediction. `prediction += learning_rate × tree_prediction`. Lower LR = smaller steps = needs more trees but less overfitting. It's the key tradeoff: LR=0.05 with 1500 trees vs LR=0.1 with 600 trees.
-
-### Q: How is XGBoost different from LightGBM?
-**A:**
-| Feature | XGBoost | LightGBM |
-|---------|---------|----------|
-| Tree growth | Level-wise | Leaf-wise |
-| Splitting | Exact or approx | Histogram-based |
-| Speed | Slower | Faster |
-| Missing values | Built-in handling | Built-in handling |
-| Sampling | Random | GOSS (gradient-based) |
-
-Both are GBDT, but LightGBM is typically **2-10x faster** with similar accuracy.
-
----
-
-## Cell 19 — MLP Classifier
-
-```python
-MLPClassifier(hidden_layer_sizes=(128,), activation='relu', solver='adam',
-              alpha=0.005, batch_size=512, learning_rate='adaptive',
-              max_iter=50, early_stopping=True)
-```
-- **hidden_layer_sizes=(128,)** — one hidden layer with 128 neurons
-- **relu** — max(0, x). Introduces non-linearity, avoids vanishing gradient
-- **adam** — adaptive optimizer (combines momentum + RMSprop)
-- **alpha=0.005** — L2 regularization strength
-- **early_stopping=True** — monitors validation loss, stops when it plateaus
-
----
-
-## Cell 23 — Hyperparameter Tuning
-
-### Q: Why is hyperparameter tuning required?
-**A:** Default hyperparameters are generic — they don't know your specific dataset. Tuning finds the **optimal combination** for YOUR data. Example: LogReg with C=0.01 gives F1=0.65, but C=5.0 gives F1=0.71 — that's a huge difference.
-
-### Q: What are some ways to perform HPT?
-**A:**
-1. **Manual search** — try a few values by hand (what we did initially)
-2. **GridSearchCV** — exhaustive search over all combinations. Guaranteed to find best in the grid, but slow
-3. **RandomizedSearchCV** — random sampling from parameter distributions. Faster, often finds good solutions
-4. **Bayesian optimization** (Optuna, hyperopt) — smart search using probability model
-5. **Early stopping** — not HPT per se, but automatically finds optimal number of trees
-
-### Q: Difference between GridSearchCV and RandomizedSearchCV?
-**A:**
-- **GridSearchCV** — tries EVERY combination. 5 C values × 2 solvers = 10 combinations × 3 folds = 30 fits. Exhaustive but slow.
-- **RandomizedSearchCV** — randomly samples N combinations from parameter distributions. If you have 1000 possible combinations, sampling 50 random ones often finds ~95% of the best. Much faster.
-- **When to use which?** Grid for small search spaces (<50 combinations), Random for large spaces.
-
-### Q: How do we choose parameters?
-**A:**
-1. Start with defaults
-2. Identify which parameters matter most (learning_rate, C, num_leaves)
-3. Do coarse search first (e.g., C = [0.01, 0.1, 1, 10])
-4. Then fine search around the best (e.g., C = [3, 5, 7, 10])
-5. Use cross-validation to evaluate each combination
-6. Pick the combination with best CV score
-
----
-
-## Cell 25 — Final Pipeline
-
-### Q: Why 3-fold CV for the final pipeline?
-**A:** Uses ALL training data for both training and validation (each sample is validated exactly once). Averaging predictions from 3 models reduces variance. 3 folds instead of 5 for speed on Kaggle.
-
-### Q: What is threshold tuning?
-**A:** After getting probability predictions, instead of just argmax, we **weight** each class's probability before taking argmax. The weights are optimized (using Nelder-Mead) to maximize F1-macro. This helps because the model may be systematically under-confident on rare classes.
-
----
-
-# PART 3: WHAT IS A CONFUSION MATRIX?
-
-### Q: What is a confusion matrix and why do we use it?
-**A:** A table showing actual vs predicted labels. For 4 classes, it's a 4×4 matrix.
-- **Diagonal** = correct predictions
-- **Off-diagonal** = errors
-- **Why use it?** Accuracy alone hides class-specific errors. Confusion matrix shows exactly WHERE the model fails. E.g., our model often confuses class 3 with class 0 — that's visible in the matrix but hidden by accuracy.
-- **Precision** = TP / (TP + FP) — "of all predicted positive, how many are actually positive?"
-- **Recall** = TP / (TP + FN) — "of all actual positive, how many did we catch?"
-- **F1** = 2 × (P × R) / (P + R) — harmonic mean, balances precision and recall
-
----
-
-# PART 4: HOUSE PRICE PREDICTION QUESTION
-
-### Q: If house's past price is given and you need to predict future prices, which ML model is suitable?
-**A:** This is a **regression** problem (continuous output).
-- **Best model:** Gradient Boosted Trees (XGBoost / LightGBM) or **Linear Regression** for interpretability.
-- **Algorithm steps (Linear Regression):**
-  1. **Data:** Features (area, bedrooms, location, year) → Target (price)
-  2. **Model:** price = w₁×area + w₂×bedrooms + ... + b (linear combination)
-  3. **Loss function:** MSE = (1/n) × Σ(predicted - actual)²
-  4. **Optimization:** Minimize MSE using gradient descent. Update: w = w - lr × ∂MSE/∂w
-  5. **Evaluation:** RMSE, MAE, R² score
-- **Why gradient boosting?** Captures non-linear relationships (price doesn't scale linearly with area).
-
----
-
-# PART 5: WHAT HAPPENS IN DIMENSIONALITY REDUCTION?
-
-### Q: What happens when dimensionality reduces? Does it crop/cut data?
-**A:** **No, it does NOT crop or cut data.** It **transforms/projects** data into a lower-dimensional space.
-- Imagine a 3D object. Its shadow on a wall is 2D — it captures the main shape but loses some detail. That's dimensionality reduction.
-- **Mathematically:** TruncatedSVD finds the directions of maximum variance, then projects all data points onto those directions.
-- Original: 30,000 TF-IDF features (mostly zeros, lots of noise)
-- After SVD: 150 components that capture 80-90% of the information
-- **Information loss:** Some, but mostly noise. The signal is preserved.
-
----
-
-# PART 6: STACKING CLASSIFIER
-
-### Q: Explain working of Stack Classifier
-**A:** Stacking combines multiple models by training a **meta-learner** on their predictions:
-1. **Level 0:** Train base models (LogReg, SVM, LightGBM, etc.) using K-fold CV
-2. Each model makes **out-of-fold predictions** on the training data
-3. **Level 1:** Stack these predictions as features, train a meta-learner (usually LogReg) to make the final prediction
-4. **Why it works:** Different models capture different patterns. The meta-learner learns which model to trust for which type of input.
-
-*Note: Our notebook uses simple averaging instead of stacking for the final pipeline (simpler and almost as good).*
-
----
-
-# PART 7: CODING QUESTIONS (if proctor changes and asks coding)
-
-## Write code to perform TF-IDF
-```python
-from sklearn.feature_extraction.text import TfidfVectorizer
-tfidf = TfidfVectorizer(max_features=5000, ngram_range=(1,2))
-X_tfidf = tfidf.fit_transform(train['comment'])  # fit on train
-X_test_tfidf = tfidf.transform(test['comment'])   # only transform on test (no fit!)
+# Usage:
+X_train_processed = preprocessor.fit_transform(X_train)
+X_test_processed = preprocessor.transform(X_test)
 ```
 
-## Write code for train/test split
+## 2. Train test split and print shapes
 ```python
 from sklearn.model_selection import train_test_split
-X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, stratify=y, random_state=42)
+import pandas as pd
+
+df = pd.read_csv('train.csv')
+X = df.drop('label', axis=1)
+y = df['label']
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, stratify=y, random_state=42)
+
+print(f"X_train: {X_train.shape}")
+print(f"X_test:  {X_test.shape}")
+print(f"y_train: {y_train.shape}")
+print(f"y_test:  {y_test.shape}")
 ```
 
-## Write code for GridSearchCV
+## 3. GridSearchCV for any model
 ```python
 from sklearn.model_selection import GridSearchCV
+from sklearn.linear_model import LogisticRegression
+
 param_grid = {'C': [0.1, 1, 10], 'solver': ['lbfgs', 'saga']}
-gs = GridSearchCV(LogisticRegression(max_iter=500), param_grid, scoring='f1_macro', cv=3)
+gs = GridSearchCV(
+    LogisticRegression(max_iter=500, random_state=42),
+    param_grid=param_grid,
+    scoring='f1_macro',
+    cv=3,
+    verbose=1
+)
 gs.fit(X_train, y_train)
-print(gs.best_params_, gs.best_score_)
+print(f"Best params: {gs.best_params_}")
+print(f"Best score: {gs.best_score_:.4f}")
 ```
 
-## Write code for confusion matrix
+## 4. Confusion matrix with visualization
 ```python
-from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
-cm = confusion_matrix(y_val, predictions)
-disp = ConfusionMatrixDisplay(cm, display_labels=[0,1,2,3])
-disp.plot(cmap='Blues')
+from sklearn.metrics import confusion_matrix, classification_report
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+y_pred = model.predict(X_test)
+cm = confusion_matrix(y_test, y_pred)
+
+plt.figure(figsize=(6,5))
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
+plt.xlabel('Predicted')
+plt.ylabel('Actual')
 plt.title('Confusion Matrix')
+plt.show()
+
+print(classification_report(y_test, y_pred, digits=4))
+```
+
+## 5. Separate numerical and categorical columns
+```python
+num_cols = df.select_dtypes(include=['int64', 'float64']).columns.tolist()
+cat_cols = df.select_dtypes(include=['object', 'category']).columns.tolist()
+print(f"Numerical: {num_cols}")
+print(f"Categorical: {cat_cols}")
+```
+
+## 6. Train LightGBM with early stopping
+```python
+import lightgbm as lgb
+from sklearn.metrics import f1_score
+
+model = lgb.LGBMClassifier(
+    n_estimators=500, learning_rate=0.1, num_leaves=31,
+    class_weight='balanced', random_state=42, verbose=-1)
+
+model.fit(X_train, y_train,
+          eval_set=[(X_val, y_val)],
+          callbacks=[lgb.early_stopping(50, verbose=False)])
+
+preds = model.predict(X_val)
+print(f"F1-macro: {f1_score(y_val, preds, average='macro'):.4f}")
+print(f"Best iteration: {model.best_iteration_}")
+```
+
+## 7. Train XGBoost
+```python
+from xgboost import XGBClassifier
+
+xgb = XGBClassifier(
+    n_estimators=300, learning_rate=0.1, max_depth=6,
+    use_label_encoder=False, eval_metric='mlogloss',
+    random_state=42)
+xgb.fit(X_train, y_train)
+preds = xgb.predict(X_val)
+```
+
+## 8. TF-IDF vectorization
+```python
+from sklearn.feature_extraction.text import TfidfVectorizer
+
+tfidf = TfidfVectorizer(max_features=5000, ngram_range=(1,2))
+X_train_tfidf = tfidf.fit_transform(train['comment'])  # fit on train only!
+X_test_tfidf = tfidf.transform(test['comment'])         # transform only!
+```
+
+## 9. Create a toy dataset and replace '?' with NaN
+```python
+import pandas as pd
+import numpy as np
+
+df = pd.DataFrame({
+    'A': [1, '?', 3, None, 5],
+    'B': ['x', 'y', '?', 'z', None],
+    'C': [10, 20, 30, '?', 50]
+})
+
+df = df.replace('?', np.nan)
+print(df)
+print(df.isnull().sum())
+```
+
+## 10. RFE (Recursive Feature Elimination)
+```python
+from sklearn.feature_selection import RFE
+from sklearn.ensemble import RandomForestClassifier
+
+rfe = RFE(
+    estimator=RandomForestClassifier(n_estimators=100, random_state=42),
+    n_features_to_select=2
+)
+rfe.fit(X_train, y_train)
+print(f"Selected features: {X_train.columns[rfe.support_].tolist()}")
+print(f"Feature ranking: {rfe.ranking_}")
+```
+
+## 11. Load sklearn dataset, train DecisionTree, plot it
+```python
+from sklearn.datasets import load_iris
+from sklearn.tree import DecisionTreeClassifier, plot_tree
+from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
+
+iris = load_iris()
+X_train, X_test, y_train, y_test = train_test_split(
+    iris.data, iris.target, test_size=0.3, random_state=42)
+
+dt = DecisionTreeClassifier(max_depth=3, random_state=42)
+dt.fit(X_train, y_train)
+print(f"Accuracy: {dt.score(X_test, y_test):.4f}")
+
+plt.figure(figsize=(15,8))
+plot_tree(dt, feature_names=iris.feature_names,
+          class_names=iris.target_names, filled=True)
 plt.show()
 ```
 
-## Write code for a basic LightGBM model
+## 12. KMeans clustering
 ```python
-import lightgbm as lgb
-model = lgb.LGBMClassifier(n_estimators=500, learning_rate=0.1, num_leaves=31,
-                            class_weight='balanced', random_state=42)
-model.fit(X_train, y_train, eval_set=[(X_val, y_val)],
-          callbacks=[lgb.early_stopping(50)])
-preds = model.predict(X_val)
-print(f1_score(y_val, preds, average='macro'))
+from sklearn.datasets import load_iris
+from sklearn.cluster import KMeans
+import matplotlib.pyplot as plt
+
+iris = load_iris()
+X = iris.data
+
+inertias = []
+for k in range(1, 11):
+    km = KMeans(n_clusters=k, random_state=42, n_init=10)
+    km.fit(X)
+    inertias.append(km.inertia_)
+
+plt.plot(range(1, 11), inertias, 'o-')
+plt.xlabel('Number of clusters (k)')
+plt.ylabel('Inertia')
+plt.title('Elbow Method')
+plt.show()
 ```
 
-## Write StandardScaler from scratch
-```python
-class MyScaler:
-    def fit(self, X):
-        self.mean_ = X.mean(axis=0)
-        self.std_ = X.std(axis=0)
-        return self
-    def transform(self, X):
-        return (X - self.mean_) / (self.std_ + 1e-8)  # +epsilon to avoid /0
-    def fit_transform(self, X):
-        return self.fit(X).transform(X)
-```
-
-## Write F1 score from scratch
+## 13. Write F1-macro from scratch
 ```python
 def f1_macro(y_true, y_pred):
-    classes = set(y_true)
+    classes = sorted(set(y_true))
     f1s = []
     for c in classes:
-        tp = sum((yt == c and yp == c) for yt, yp in zip(y_true, y_pred))
-        fp = sum((yt != c and yp == c) for yt, yp in zip(y_true, y_pred))
-        fn = sum((yt == c and yp != c) for yt, yp in zip(y_true, y_pred))
-        precision = tp / (tp + fp) if (tp + fp) > 0 else 0
-        recall = tp / (tp + fn) if (tp + fn) > 0 else 0
-        f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0
+        tp = sum(1 for yt, yp in zip(y_true, y_pred) if yt == c and yp == c)
+        fp = sum(1 for yt, yp in zip(y_true, y_pred) if yt != c and yp == c)
+        fn = sum(1 for yt, yp in zip(y_true, y_pred) if yt == c and yp != c)
+        p = tp / (tp + fp) if (tp + fp) > 0 else 0
+        r = tp / (tp + fn) if (tp + fn) > 0 else 0
+        f1 = 2 * p * r / (p + r) if (p + r) > 0 else 0
         f1s.append(f1)
     return sum(f1s) / len(f1s)
 ```
 
 ---
 
-# PART 8: QUICK REFERENCE — ALL 20 PROCTOR QUESTIONS WITH SHORT ANSWERS
+# SECTION F: TRAP QUESTIONS & TRICKY FOLLOW-UPS
 
-| # | Question | Key Answer |
-|---|----------|-----------|
-| 1 | Steps in preprocessing | Handle missing → encode categoricals → scale numerics → vectorize text → reduce dimensions |
-| 2 | Feature scaling & why needed | Transform features to similar ranges; needed for distance/gradient-based models |
-| 3 | What happens in dimensionality reduction | Projects data to lower-dim subspace preserving max variance; doesn't crop |
-| 4 | House price prediction model | Regression problem; use Linear Regression or XGBoost; minimize MSE via gradient descent |
-| 5 | Why HPT required | Default params are generic; tuning finds optimal combo for YOUR data |
-| 6 | Ways to do HPT | GridSearchCV, RandomizedSearchCV, Bayesian (Optuna), manual search |
-| 7 | Grid vs Random search | Grid=exhaustive (slow, guaranteed best in grid); Random=sampled (fast, usually finds ~95% of best) |
-| 8 | Project objective | Multi-class comment classification (4 classes); metric = F1-macro |
-| 9 | Models used | LogReg, SGD, NB, KNN, LinearSVC, LightGBM, XGBoost, MLP (8 total) |
-| 10 | Best model & why | LightGBM (balanced) — handles imbalance via class weights, captures non-linear patterns, fast training |
-| 11 | How you proceeded | EDA→Clean→FeatEng→Preprocess→8 models→HPT→Compare→Final CV pipeline→Submit |
-| 12 | How LightGBM works | Sequential trees, each corrects errors of previous; leaf-wise growth; histogram splits |
-| 13 | Confusion matrix | Actual vs Predicted table; shows WHERE model fails; used to compute P, R, F1 per class |
-| 14 | XGBoost vs LightGBM | XGB=level-wise, exact splits, slower; LGBM=leaf-wise, histogram, faster |
-| 15 | LogReg: use case & name | Classification via sigmoid/softmax; called "regression" because uses regression function internally |
-| 16 | Learning rate | Controls step size in optimization; shrinks each tree's contribution in boosting |
-| 17 | How to choose parameters | Coarse grid → fine grid around best → cross-validate each combo |
-| 18 | What is random_state | Random seed for reproducibility; same seed = same results |
-| 19 | Why 42 | Convention from pop culture; any integer works; doesn't affect quality |
-| 20 | Why 500 iterations in LogReg | Default 100 is insufficient for 470 features × 4 classes; 500 balances convergence vs speed |
+## "Why learning rate=0.01, 0.1 and not 1, 2, 3?"
+**A:** "Learning rate controls step size. If LR=1 or 2, the optimization overshoots the minimum — like taking huge jumps and missing the valley. Small LR (0.01-0.1) takes small careful steps that converge smoothly. Too small = very slow learning, too large = divergence."
+
+## "If model is overfitting, increase or decrease n_estimators?"
+**A:** "**Decrease** (or use early stopping). More trees = more complex model = more overfitting. Early stopping is even better — it automatically finds the right number."
+
+## "If model is overfitting, increase or decrease learning_rate?"
+**A:** "**Decrease.** Lower learning rate = each tree contributes less = more regularization. But you'll need more trees to compensate, so pair it with early stopping."
+
+## "Is Random Forest parametric or non-parametric?"
+**A:** "**Non-parametric.** It doesn't assume any fixed functional form. The model structure (tree splits) grows with the data."
+
+## "What is 'support' in classification report?"
+**A:** "The number of actual occurrences of each class in the test/validation set. For class 3, support might be 1100 — meaning there are 1100 class-3 samples in validation."
+
+## "What is verbose in model training?"
+**A:** "Controls how much output the model prints during training. verbose=0: silent, verbose=1: progress updates, verbose=-1 (LightGBM): suppress all warnings."
+
+## "What is n_jobs=-1?"
+**A:** "Use all available CPU cores for parallel processing. n_jobs=1: single core, n_jobs=-1: all cores."
+
+## "Is this supervised or unsupervised learning?"
+**A:** "**Supervised classification.** We have labeled training data (comments with known categories 0-3). We learn a mapping from features to labels."
+
+## "Name 3 unsupervised algorithms"
+**A:** "KMeans clustering, DBSCAN, PCA (for dimensionality reduction)"
+
+## "What is the difference between XGBoost and Linear Regression?"
+**A:** "Completely different:
+- **Linear Regression** is a linear model for regression. Assumes linear relationship: y = wx+b
+- **XGBoost** is gradient boosted decision trees for classification/regression. Non-linear, handles complex interactions, uses ensemble of weak learners"
 
 ---
 
-> **Final Tip from past students:** The proctor spends ~30 min on EDA. Know every plot's purpose and interpretation. For the rest, be confident and concise. If you don't know something, say "I'm not sure about the exact details but here's my understanding..." — honesty > bluffing.
+# SECTION G: YOUR NOTEBOOK — QUICK REFERENCE CARD
+
+| Cell | Topic | Key Points to Mention |
+|------|-------|----------------------|
+| **1** | Imports | "I use sklearn, LightGBM, XGBoost — all allowed libraries" |
+| **3** | Data Loading | "198K train, 102K test, 4 classes, heavily imbalanced" |
+| **5** | EDA | "Class imbalance, comment length by label, correlation heatmap" |
+| **7-8** | Cleaning + FE | "fillna, caps_ratio, word_count, interaction features" |
+| **10-11** | Preprocessing | "TF-IDF (word+char), StandardScaler, OHE, TruncatedSVD (30K→150)" |
+| **13** | LogReg + SGD | "Tuned C values with balanced class weights" |
+| **15** | NB, KNN, SVM | "NB poor (independence assumption), SVM good with linear kernel" |
+| **17** | LightGBM + XGB | "Best performers. LGBM: leaf-wise, histogram splits, GOSS" |
+| **19** | MLP | "Neural net with ReLU, Adam optimizer, early stopping" |
+| **21** | 🆕 Model Comparison | "Bar chart comparing F1-macro of all 8 models, confusion matrices" |
+| **23** | 🆕 HP Tuning | "GridSearchCV on 3 models with f1_macro, bar chart of results" |
+| **25** | Final Pipeline | "3-fold CV LightGBM + F1-macro threshold tuning" |
+| **27** | Submission | "102K predictions, 4-class distribution, saved to CSV" |
+
+---
+
+# SECTION H: LAST-MINUTE CHECKLIST
+
+- [ ] Can you explain EVERY graph in your notebook and WHY you plotted it?
+- [ ] Can you define: preprocessing, feature engineering, feature scaling, HPT, dimensionality reduction?
+- [ ] Can you explain: TF-IDF, TruncatedSVD, LogReg, LightGBM, XGBoost, MLP?
+- [ ] Can you answer the house price prediction question?
+- [ ] Can you explain random_state=42 WITHOUT saying Hitchhiker's Guide?
+- [ ] Can you differentiate: GridSearchCV vs RandomizedSearchCV?
+- [ ] Can you explain why accuracy is bad for imbalanced data?
+- [ ] Can you write: Pipeline + ColumnTransformer code from memory?
+- [ ] Can you write: GridSearchCV code from memory?
+- [ ] Can you explain confusion matrix and identify TP/FP/FN/TN?
+- [ ] Do you know: bagging vs boosting, overfitting vs underfitting, bias vs variance?
+- [ ] Can you explain what class_weight='balanced' does and why you use it?
+
+> **🏆 Golden Rule from the student who got 47/50:** *"All depends on how well u speak about questions he asks. I just answered everything confidently — he didn't ask any added question. Simple only. Just prepare gform questions before viva."*
